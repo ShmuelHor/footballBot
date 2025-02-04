@@ -120,6 +120,7 @@ async def get_today_matches():
 
     # אם לא נמצאו משחקים להיום, לא נשלח שום הודעה
     if not matches:
+        print("No matches found for today.")
         return
 
     # מיון המשחקים לפי תאריך ושעה
@@ -160,7 +161,19 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(lambda: asyncio.run(get_this_week_matches()), 'cron', day_of_week='sun', hour=13, minute=0)
 
 # מתזמן לשליחת סיכום משחקים להיום ב-13:00 כל יום
-scheduler.add_job(lambda: asyncio.run(get_today_matches()), 'cron', day_of_week='mon-sun', hour=13, minute=00)
+scheduler.add_job(lambda: asyncio.run(get_today_matches()), 'cron', day_of_week='mon-sun', hour=18, minute=2)
+
+# מתזמן לשליחת בקשה כל 5 דקות כדי לשמור את השרת פעיל
+def keep_server_alive():
+    try:
+        # שולח בקשה לאתר המקומי על מנת לשמור את השרת פעיל
+        response = requests.get("http://localhost:3000/")
+        print(f"Server keep-alive response: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error keeping server alive: {e}")
+
+# הוספת מתזמן לשליחת בקשה כל 5 דקות
+scheduler.add_job(keep_server_alive, 'interval', minutes=5)
 
 # התחלת המתזמן
 scheduler.start()
