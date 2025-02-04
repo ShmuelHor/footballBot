@@ -158,10 +158,10 @@ async def send_test_message():
 scheduler = BackgroundScheduler()
 
 # מתזמן שליחת סיכום משחקים לשבוע הקרוב ב-יום ראשון בשעה 13:00
-scheduler.add_job(lambda: asyncio.run(get_this_week_matches()), 'cron', day_of_week='sun', hour=13, minute=0)
+scheduler.add_job(lambda: asyncio.run(get_this_week_matches()), 'cron', day_of_week='sun', hour=9, minute=0)
 
 # מתזמן לשליחת סיכום משחקים להיום ב-13:00 כל יום
-scheduler.add_job(lambda: asyncio.run(get_today_matches()), 'cron', day_of_week='mon-sun', hour=18, minute=2)
+scheduler.add_job(lambda: asyncio.run(get_today_matches()), 'cron', day_of_week='mon-sun', hour=9, minute=0)
 
 # מתזמן לשליחת בקשה כל 5 דקות כדי לשמור את השרת פעיל
 def keep_server_alive():
