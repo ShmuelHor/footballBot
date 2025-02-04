@@ -44,7 +44,7 @@ async def send_telegram_message(message):
         print(f"Error sending message: {e}")  # טיפול בשגיאות
 
 # פונקציה לשליחת משחקים לפי תאריך
-def get_matches_for_date(start_date, end_date):
+def get_matches_for_date(start_date, end_date, team_ids):
     headers = {
         "X-Auth-Token": FOOTBALL_API_KEY
     }
@@ -52,10 +52,13 @@ def get_matches_for_date(start_date, end_date):
     params = {'dateFrom': start_date, 'dateTo': end_date}  # מגביל לפי תאריך
 
     try:
-        response = requests.get(FOOTBALL_API_URL + "teams/86/matches", headers=headers, params=params)
-        response.raise_for_status()  # יוודא שאין בעיות עם ה-API
-        data = response.json()
-        return data.get("matches", [])
+        all_matches = []
+        for team_id in team_ids:
+            response = requests.get(f"{FOOTBALL_API_URL}teams/{team_id}/matches", headers=headers, params=params)
+            response.raise_for_status()  # יוודא שאין בעיות עם ה-API
+            data = response.json()
+            all_matches.extend(data.get("matches", []))
+        return all_matches
     except requests.exceptions.RequestException as e:
         print(f"API request error: {e}")
         return []
@@ -66,20 +69,26 @@ async def get_this_week_matches():
     start_date = today.strftime('%Y-%m-%d')
     end_date = (today + timedelta(days=7)).strftime('%Y-%m-%d')
 
-    matches = get_matches_for_date(start_date, end_date)
+    # IDs של ריאל מדריד וברצלונה ב-API
+    team_ids = [86, 81]  # 86: ריאל מדריד, 81: ברצלונה
+
+    matches = get_matches_for_date(start_date, end_date, team_ids)
 
     if not matches:
         await send_telegram_message(f"לא נמצאו משחקים לשבוע הקרוב ({start_date} - {end_date}).")
     else:
+        # מיון המשחקים לפי תאריך ושעה
+        matches.sort(key=lambda match: match["utcDate"])
+
         message = f"משחקים לשבוע הקרוב ({start_date} - {end_date}):\n"
         for match in matches:
             # תרגום הליגה
             competition = league_translations.get(match["competition"]["name"], match["competition"]["name"])
-            
+
             # תרגום קבוצות
             home_team = team_translations.get(match["homeTeam"]["name"], match["homeTeam"]["name"])
             away_team = team_translations.get(match["awayTeam"]["name"], match["awayTeam"]["name"])
-            
+
             utc_date = match["utcDate"]
             match_time = (datetime.strptime(utc_date, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")
 
@@ -101,8 +110,8 @@ async def send_test_message():
 # הגדרת מערכת המתזמן
 scheduler = BackgroundScheduler()
 
-# מתזמן שליחת סיכום משחקים לשבוע הקרוב ב-יום שני בשעה 15:00
-scheduler.add_job(lambda: asyncio.run(get_this_week_matches()), 'cron', hour=15, minute=52)
+# מתזמן שליחת סיכום משחקים לשבוע הקרוב ב-יום ראשון בשעה 9:00
+scheduler.add_job(lambda: asyncio.run(get_this_week_matches()), 'cron', day_of_week='sun', hour=9, minute=0)
 
 # התחלת המתזמן
 scheduler.start()
