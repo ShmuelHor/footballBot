@@ -101,6 +101,43 @@ async def get_this_week_matches():
 
         await send_telegram_message(message)
 
+# פונקציה לשליחת משחקים להיום
+async def get_today_matches():
+    today = datetime.now()
+    start_date = today.strftime('%Y-%m-%d')
+    end_date = start_date  # רק יום אחד (היום)
+
+    # IDs של ריאל מדריד וברצלונה ב-API
+    team_ids = [86, 81]  # 86: ריאל מדריד, 81: ברצלונה
+
+    matches = get_matches_for_date(start_date, end_date, team_ids)
+
+    if not matches:
+        await send_telegram_message(f"היום אין משחקים ({start_date}).")
+    else:
+        # מיון המשחקים לפי תאריך ושעה
+        matches.sort(key=lambda match: match["utcDate"])
+
+        message = f"משחקים להיום ({start_date}):\n"
+        for match in matches:
+            # תרגום הליגה
+            competition = league_translations.get(match["competition"]["name"], match["competition"]["name"])
+
+            # תרגום קבוצות
+            home_team = team_translations.get(match["homeTeam"]["name"], match["homeTeam"]["name"])
+            away_team = team_translations.get(match["awayTeam"]["name"], match["awayTeam"]["name"])
+
+            utc_date = match["utcDate"]
+            match_time = (datetime.strptime(utc_date, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")
+
+            # הצגת קו הפרדה מעל המשחק
+            message += "-" * 40 + "\n"
+            message += f"תחרות: {competition}\n"
+            message += f"{home_team} vs {away_team}\n"
+            message += f"שעה: {match_time.split()[1]}"    # שעה (שעה ודקה בלבד)
+
+        await send_telegram_message(message)
+
 # פונקציה לשליחת הודעת בדיקה
 @app.get("/send_test_message")
 async def send_test_message():
@@ -112,6 +149,9 @@ scheduler = BackgroundScheduler()
 
 # מתזמן שליחת סיכום משחקים לשבוע הקרוב ב-יום ראשון בשעה 9:00
 scheduler.add_job(lambda: asyncio.run(get_this_week_matches()), 'cron', day_of_week='sun', hour=9, minute=0)
+
+# מתזמן לשליחת סיכום משחקים להיום ב-9:00 כל יום
+scheduler.add_job(lambda: asyncio.run(get_today_matches()), 'cron', day_of_week='mon-sun', hour=9, minute=0)
 
 # התחלת המתזמן
 scheduler.start()
